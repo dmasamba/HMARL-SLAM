@@ -21,7 +21,8 @@ if not os.path.exists(model_path):
     os.makedirs(model_path)
 if not os.path.exists(gifs_path):
     os.makedirs(gifs_path)
-map_data_folder = "maps_medium_data"
+map_dir = 'maps'  # changed from 'maps_medium' to use small maps
+map_data_folder = f"{map_dir}_data"
 if not os.path.exists(f'{map_data_folder}'):
             os.makedirs(f'{map_data_folder}')
 

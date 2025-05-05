@@ -9,8 +9,7 @@ from local_node_manager_quadtree import Local_node_manager
 
 class Agent:
     def __init__(self, id, policy_net, env, ground_truth_node_manager, device='cpu', plot=False):
-        if env.test:
-            N_AGENTS = TEST_N_AGENTS
+        num_agents = TEST_N_AGENTS if env.test else N_AGENTS
         self.id = id
         self.device = device
         self.plot = plot
@@ -56,7 +55,7 @@ class Agent:
         self.current_local_index, self.local_adjacent_matrix, self.local_neighbor_indices = None, None, None
 
         # msg
-        self.msgs =[[] for _ in range(N_AGENTS)]
+        self.msgs =[[] for _ in range(num_agents)]
 
         # momentum
         self.momentum = np.zeros(2) 

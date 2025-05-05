@@ -13,8 +13,7 @@ from utils import *
 
 class Env:
     def __init__(self, episode_index, plot=False, test=False):
-        if test:
-            N_AGENTS = TEST_N_AGENTS
+        num_agents = TEST_N_AGENTS if test else N_AGENTS
         self.test = test
         self.episode_index = episode_index
         self.plot = plot
@@ -39,7 +38,7 @@ class Env:
         self.ground_truth_info = Map_info(self.ground_truth, self.belief_origin_x, self.belief_origin_y, self.cell_size)
 
         free, _ = get_local_node_coords(np.array([0.0, 0.0]), self.belief_info)
-        choice = np.random.choice(free.shape[0], N_AGENTS, replace=False)
+        choice = np.random.choice(free.shape[0], num_agents, replace=False)
         starts = free[choice]
         self.robot_locations = np.array(starts)
 
