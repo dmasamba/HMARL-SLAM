@@ -6,6 +6,8 @@ import ray
 import os
 import numpy as np
 import random
+import wandb
+from datetime import datetime  # <-- add this
 
 from model import PolicyNet, QNet
 from runner import RLRunner
@@ -15,6 +17,21 @@ from parameter import *
 
 ray.init()
 print("Welcome to RL autonomous exploration!")
+
+# Initialize wandb with datetime in run name (MM_DD_YY_HH_MM_SS)
+run_datetime = datetime.now().strftime("%m_%d_%y-%H_%M_%S")
+wandb.init(
+    project="HMARL-SLAM",
+    name=f"run_{run_datetime}",
+    config={
+        "learning_rate": LR,
+        "batch_size": BATCH_SIZE,
+        "gamma": GAMMA,
+        "local_k_size": LOCAL_K_SIZE,
+        "embedding_dim": EMBEDDING_DIM,
+        # add more config params as needed
+    }
+)
 
 writer = SummaryWriter(train_path)
 if not os.path.exists(model_path):
@@ -336,6 +353,8 @@ def main():
                 path_checkpoint = "./" + model_path + "/checkpoint.pth"
                 torch.save(checkpoint, path_checkpoint)
                 print('Saved model', end='\n')
+                # Optionally log checkpoint to wandb
+                wandb.save(path_checkpoint)
 
     except KeyboardInterrupt:
         print("CTRL_C pressed. Killing remote workers")
@@ -360,10 +379,26 @@ def write_to_tensor_board(writer, tensorboard_data, curr_episode):
     writer.add_scalar(tag='Losses/Q Value Grad Norm', scalar_value=q_value_grad_norm, global_step=curr_episode)
     writer.add_scalar(tag='Losses/Log Alpha', scalar_value=log_alpha, global_step=curr_episode)
     writer.add_scalar(tag='Perf/Reward', scalar_value=reward, global_step=curr_episode)
-    
     writer.add_scalar(tag='Perf/Travel Distance', scalar_value=travel_dist, global_step=curr_episode)
     writer.add_scalar(tag='Perf/Explored Rate', scalar_value=explored_rate, global_step=curr_episode)
     writer.add_scalar(tag='Perf/Success Rate', scalar_value=success_rate, global_step=curr_episode)
+
+    # Log to wandb as well
+    wandb.log({
+        'Losses/Value': value,
+        'Losses/Policy Loss': policy_loss,
+        'Losses/Alpha Loss': alpha_loss,
+        'Losses/Q Value Loss': q_value_loss,
+        'Losses/Entropy': entropy,
+        'Losses/Policy Grad Norm': policy_grad_norm,
+        'Losses/Q Value Grad Norm': q_value_grad_norm,
+        'Losses/Log Alpha': log_alpha,
+        'Perf/Reward': reward,
+        'Perf/Travel Distance': travel_dist,
+        'Perf/Explored Rate': explored_rate,
+        'Perf/Success Rate': success_rate,
+        'episode': curr_episode
+    }, step=curr_episode)
 
 
 if __name__ == "__main__":
