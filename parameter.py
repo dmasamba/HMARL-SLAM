@@ -37,4 +37,4 @@ LOCAL_NODE_PADDING_SIZE = 360  # the number of nodes will be padded to this valu
 USE_GPU = False  # do you want to collect training data using GPUs
 USE_GPU_GLOBAL = True  # do you want to train the network using GPUs
 NUM_GPU = 1
-NUM_META_AGENT = 8
+NUM_META_AGENT = 2
