@@ -7,7 +7,8 @@ import os
 import numpy as np
 import random
 import wandb
-from datetime import datetime  # <-- add this
+from datetime import datetime 
+import psutil
 
 from model import PolicyNet, QNet
 from runner import RLRunner
@@ -42,6 +43,13 @@ map_dir = 'maps'  # changed from 'maps_medium' to use small maps
 map_data_folder = f"{map_dir}_data"
 if not os.path.exists(f'{map_data_folder}'):
             os.makedirs(f'{map_data_folder}')
+
+
+def log_resource_usage_main():
+    process = psutil.Process(os.getpid())
+    mem_mb = process.memory_info().rss / 1024 / 1024  # Resident Set Size in MB
+    cpu_percent = process.cpu_percent(interval=0.1)   # CPU percent over 0.1s
+    print(f"-----[Main Resource Monitor] Memory: {mem_mb:.2f} MB | CPU: {cpu_percent:.2f}%-----")
 
 
 def main():
@@ -310,6 +318,9 @@ def main():
                         alpha_loss.item(), *perf_data]
                 
                 training_data.append(data)
+
+                # Log resource usage for the main process after training step
+                log_resource_usage_main()
 
             # write record to tensorboard
             if len(training_data) >= SUMMARY_WINDOW:

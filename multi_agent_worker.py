@@ -3,6 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from copy import deepcopy
+import os
+import psutil  # <-- Add this import
 
 from env import Env
 from agent import Agent
@@ -37,12 +39,15 @@ class Multi_agent_worker:
         except FileNotFoundError:
             print("File not found, creating new ground truth node manager")
             self.ground_truth_node_manager = Ground_truth_node_manager(self.env.ground_truth_info, plot=True)
+            # Ensure the directory exists before writing the file
+            os.makedirs(os.path.dirname(f"{data_path}.pkl"), exist_ok=True)
             # save ground truth node manager
             with open(f'{data_path}.pkl', 'wb') as f:
                 pickle.dump(self.ground_truth_node_manager, f, pickle.HIGHEST_PROTOCOL)
         except Exception as e:
             print("Error: ", e)
             self.ground_truth_node_manager = Ground_truth_node_manager(self.env.ground_truth_info, plot=True)
+            os.makedirs(os.path.dirname(f"{data_path}.pkl"), exist_ok=True)
             with open(f'{data_path}.pkl', 'wb') as f:
                 pickle.dump(self.ground_truth_node_manager, f, pickle.HIGHEST_PROTOCOL)
 
@@ -59,6 +64,12 @@ class Multi_agent_worker:
         for _ in range(12):
             self.ground_truth_episode_buffer.append([])
  
+    def log_resource_usage(self):
+        process = psutil.Process(os.getpid())
+        mem_mb = process.memory_info().rss / 1024 / 1024  # Resident Set Size in MB
+        cpu_percent = process.cpu_percent(interval=0.1)   # CPU percent over 0.1s
+        print(f"-----[Resource Monitor] Memory: {mem_mb:.2f} MB | CPU: {cpu_percent:.2f}%-----")
+
     def run_episode(self):
         done = False
 
@@ -242,6 +253,8 @@ class Multi_agent_worker:
         if self.save_image:
             make_gif(gifs_path, self.global_step, self.env.frame_files, self.env.explored_rate)
 
+        # Log resource usage at the end of each episode
+        self.log_resource_usage()
 
     def plot_local_env(self, step):
         plt.switch_backend('agg')
