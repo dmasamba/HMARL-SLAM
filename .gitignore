@@ -3,3 +3,5 @@ gifs/
 train/
 results/
 maps_medium_data/
+mas_data/
+wandb/
