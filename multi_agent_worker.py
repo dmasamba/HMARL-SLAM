@@ -66,9 +66,16 @@ class Multi_agent_worker:
  
     def log_resource_usage(self):
         process = psutil.Process(os.getpid())
-        mem_mb = process.memory_info().rss / 1024 / 1024  # Resident Set Size in MB
+        mem_info = process.memory_info()
+        mem_mb = mem_info.rss / 1024 / 1024  # Resident Set Size in MB
+        total_mem = psutil.virtual_memory().total / 1024 / 1024  # Total system memory in MB
+        mem_percent = (mem_mb / total_mem) * 100
+
         cpu_percent = process.cpu_percent(interval=0.1)   # CPU percent over 0.1s
-        print(f"-----[Resource Monitor] Memory: {mem_mb:.2f} MB | CPU: {cpu_percent:.2f}%-----")
+        total_cpu = psutil.cpu_count(logical=True) * 100  # 100% per logical CPU
+        cpu_percent_system = (cpu_percent / total_cpu) * 100
+
+        print(f"-----[Resource Monitor] Memory: {mem_mb:.2f} MB ({mem_percent:.2f}%) | CPU: {cpu_percent:.2f}% of process, {cpu_percent_system:.2f}% of system-----")
 
     def run_episode(self):
         done = False
