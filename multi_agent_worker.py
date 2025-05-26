@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from copy import deepcopy
 import os
-import psutil  # <-- Add this import
+import psutil 
+
+import math
+from matplotlib import gridspec
 
 from env import Env
 from agent import Agent
@@ -266,54 +269,100 @@ class Multi_agent_worker:
     def plot_local_env(self, step):
         plt.switch_backend('agg')
         plt.style.use('fast')
-        fig = plt.figure(figsize=(15, 5))
-        gs = gridspec.GridSpec(2, 4)
+
+        # Compute number of agents and pull that many distinct colors
+        num_agents = self.n_agent
+        cmap = plt.get_cmap('tab20', num_agents)
+        color_list = [cmap(i) for i in range(num_agents)]
+
+        # modified to dynamic GridSpec
+        local_cols = 2
+        local_rows = math.ceil(num_agents / local_cols)
+        total_rows = max(2, local_rows)
+        total_cols = 2 + local_cols
+        gs = gridspec.GridSpec(total_rows, total_cols)
+        fig = plt.figure(figsize=(4 * total_cols, 3 * total_rows))
+
+
+        # --- Global view subplot ---
         ax1 = fig.add_subplot(gs[0:2, 0:2])
         ax1.imshow(self.env.robot_belief, cmap='gray')
         ax1.axis('off')
-        color_list = ['r', 'b', 'g', 'y']
+
+        # frontiers in red
         frontiers = get_frontier_in_map(self.env.belief_info)
         frontiers = get_cell_position_from_coords(frontiers, self.env.belief_info).reshape(-1, 2)
         ax1.scatter(frontiers[:, 0], frontiers[:, 1], c='r', s=1)
+
+        # each robot trajectory & current pos
         for robot in self.robot_list:
             c = color_list[robot.id]
             robot_cell = get_cell_position_from_coords(robot.location, robot.global_map_info)
-            ax1.plot(robot_cell[0], robot_cell[1], c+'o', markersize=16, zorder=5)
-            ax1.plot((np.array(robot.trajectory_x) - robot.global_map_info.map_origin_x) / robot.cell_size,
-                     (np.array(robot.trajectory_y) - robot.global_map_info.map_origin_y) / robot.cell_size, c,
-                     linewidth=2, zorder=1)
-        
-        ax1.set_title('Explored ratio: {:.4g}  Travel distance: {:.4g}'.format(self.env.explored_rate,
-                                                                              max([robot.travel_dist for robot in
-                                                                                   self.robot_list])))
-            
-        for i in range(self.n_agent):
-            ax = fig.add_subplot(gs[i // 2, 2 + i % 2])
-            ax.imshow(self.robot_list[i].local_map_info.map, cmap='gray')
-            frontiers = get_frontier_in_map(self.robot_list[i].env.belief_info)
-            frontiers = get_cell_position_from_coords(frontiers, self.robot_list[i].env.belief_info).reshape(-1, 2)
+            ax1.plot(
+                robot_cell[0], robot_cell[1],
+                marker='o',
+                markersize=16,
+                color=c,
+                zorder=5,
+            )
+            ax1.plot(
+                (np.array(robot.trajectory_x) - robot.global_map_info.map_origin_x) / robot.cell_size,
+                (np.array(robot.trajectory_y) - robot.global_map_info.map_origin_y) / robot.cell_size,
+                color=c,
+                linewidth=2,
+                zorder=1,
+            )
+
+        ax1.set_title(
+            f'Explored ratio: {self.env.explored_rate:.4g}  '
+            f'Travel distance: {max(r.travel_dist for r in self.robot_list):.4g}'
+        )
+
+        # --- Per‐agent local views ---
+        for i, robot in enumerate(self.robot_list):
+            row = i // local_cols
+            col = 2 + (i % local_cols)
+            ax  = fig.add_subplot(gs[row, col])
+            ax.imshow(robot.local_map_info.map, cmap='gray')
+            ax.axis('off')
+
+            # local frontiers in red
+            frontiers = get_frontier_in_map(robot.env.belief_info)
+            frontiers = get_cell_position_from_coords(frontiers, robot.env.belief_info).reshape(-1, 2)
             ax.scatter(frontiers[:, 0], frontiers[:, 1], c='r', s=1)
+
+            # overlay each robot on this subplot
             for robot in self.robot_list:
                 c = color_list[robot.id]
+
+                # highlight nodes if this is the focal robot
                 if robot.id == i:
                     nodes = get_cell_position_from_coords(robot.local_node_coords, robot.global_map_info)
+                    utility = robot.utility.copy()
+                    utility[utility == -1] = 0
                     ax.imshow(robot.global_map_info.map, cmap='gray')
-                    ax.axis('off')
-                    untility = robot.utility
-                    untility[untility == -1] = 0
-                    ax.scatter(nodes[:, 0], nodes[:, 1], c=untility, s=5, zorder=2)
+                    ax.scatter(nodes[:, 0], nodes[:, 1], c=utility, s=5, zorder=2)
+
+                # always plot robot position
                 robot_cell = get_cell_position_from_coords(robot.location, robot.global_map_info)
-                ax.plot(robot_cell[0], robot_cell[1], c+'o', markersize=4, zorder=5)
-            
-            ax.axis('off')
-            ax.set_title('Robot {}'.format(i))
-            
-            
+                ax.plot(
+                    robot_cell[0], robot_cell[1],
+                    marker='o',
+                    markersize=4,
+                    color=c,
+                    zorder=5,
+                )
+
+            ax.set_title(f'Robot {i}')
+
         plt.tight_layout()
-        plt.savefig('{}/{}_{}_samples.png'.format(gifs_path, self.global_step, step), dpi=150)
-        frame = '{}/{}_{}_samples.png'.format(gifs_path, self.global_step, step)
-        self.env.frame_files.append(frame)
+
+        # save frame
+        out_path = f'{gifs_path}/{self.global_step}_{step}_samples.png'
+        plt.savefig(out_path, dpi=150)
+        self.env.frame_files.append(out_path)
         plt.close()
+
     
     def send_msg(self, msg, robot_id):
         for robot in self.robot_list:
